@@ -34,12 +34,18 @@ def monitor_sheets():
         try:
             print(f"📡 [MCP] {time.strftime('%Y-%m-%d %H:%M:%S')} - 체크 중...")
             
-            # 시스템 PATH에서 bun 실행 파일의 위치를 자동으로 찾습니다.
-            # 찾지 못할 경우 기본값 'bun'을 사용합니다.
-            bun_command = shutil.which("bun") or "bun"
+            # [핵심 수정] Bun 경로를 찾는 3단계 전략
+            # 1. 시스템 PATH에서 찾기 -> 2. Render 표준 경로 직접 지정 -> 3. 기본값 'bun'
+            bun_command = shutil.which("bun")
+            if not bun_command:
+                render_bun_path = "/opt/render/.bun/bin/bun"
+                if os.path.exists(render_bun_path):
+                    bun_command = render_bun_path
+                else:
+                    bun_command = "bun"
 
             # TypeScript 로직 실행
-            # env=os.environ을 통해 파이썬의 환경 변수를 자식 프로세스에도 전달합니다.
+            # env=os.environ을 통해 파이썬의 모든 환경 변수를 자식 프로세스에 전달합니다.
             result = subprocess.run(
                 [bun_command, "run", script_path],
                 env=os.environ,
@@ -47,9 +53,9 @@ def monitor_sheets():
                 text=True
             )
             
-            # 실행 결과 출력 (디버깅용)
+            # 실행 결과 및 에러 출력 (디버깅 필수)
             if result.stderr:
-                print(f"❌ [MCP 로그]: {result.stderr.strip()}")
+                print(f"❌ [MCP 에러 로그]: {result.stderr.strip()}")
             if result.stdout:
                 print(f"✅ [MCP 출력]: {result.stdout.strip()}")
             
@@ -57,7 +63,8 @@ def monitor_sheets():
             time.sleep(60) 
         except Exception as e:
             print(f"⚠️ 시스템 오류 발생: {e}")
-            time.sleep(20) # 에러 시 대기 후 재시도
+            print(f"🔍 현재 시도한 bun 경로: {bun_command if 'bun_command' in locals() else 'None'}")
+            time.sleep(20)
 
 # 3. Render 생존 확인용 엔드포인트
 @app.route('/')
@@ -67,11 +74,11 @@ def health_check():
 
 # 4. 서버 실행
 if __name__ == "__main__":
-    # 시트 감시 로직을 별도 스레드에서 실행하여 Flask 서버와 병렬로 작동시킵니다.
+    # 시트 감시 로직을 별도 스레드에서 실행
     monitor_thread = threading.Thread(target=monitor_sheets, daemon=True)
     monitor_thread.start()
 
-    # Render에서 할당한 포트(기본 10000)를 사용합니다.
+    # Render 포트 설정 (기본값 10000)
     port = int(os.environ.get("PORT", 10000))
     print(f"✅ [Render] 서버가 포트 {port}에서 대기 중입니다.")
     
