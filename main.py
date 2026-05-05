@@ -12,71 +12,69 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# 필수 설정값 확인
+# 필수 환경 변수 체크
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 SPREADSHEET_ID = os.environ.get("MY_SPREADSHEET_ID")
 
-# Render 설정(Environment Variables)에서 추가한 BUN_PATH를 가져옵니다.
-# 설정하지 않았다면 Render의 기본 설치 경로를 시도합니다.
+# Render Settings에서 설정한 BUN_PATH를 가져옵니다. 없을 경우 기본 경로 시도.
 BUN_EXECUTABLE = os.environ.get("BUN_PATH", "/opt/render/.bun/bin/bun")
 
 if not GEMINI_API_KEY or not SPREADSHEET_ID:
-    print("❌ 에러: GEMINI_API_KEY 또는 MY_SPREADSHEET_ID 환경 변수가 없습니다.")
+    print("❌ 에러: GEMINI_API_KEY 또는 MY_SPREADSHEET_ID가 설정되지 않았습니다.")
     sys.exit(1)
 
 # Gemini AI 설정
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-pro')
 
-# 2. 핵심 로직: 시트 감시 및 단어 처리 (Infinite Loop)
+# 2. 핵심 로직: 시트 감시 및 단어 처리 (무한 루프)
 def monitor_sheets():
-    print(f"🚀 [Monitor] 시트 감시 시작. 대상: {SPREADSHEET_ID}")
-    # index.ts 파일이 mcp-google-sheets 폴더 안에 있는지 확인하세요.
+    print(f"🚀 [Monitor] 시트 감시를 시작합니다. 대상: {SPREADSHEET_ID}")
     script_path = "mcp-google-sheets/index.ts"
 
     while True:
         try:
-            print(f"📡 [MCP] {time.strftime('%H:%M:%S')} - 단어 데이터 체크 중...")
+            print(f"📡 [MCP] {time.strftime('%Y-%m-%d %H:%M:%S')} - 단어 데이터 체크 중...")
             
-            # Bun을 사용하여 TypeScript 로직 실행
-            # capture_output을 사용하여 로그를 파이썬 콘솔에 출력합니다.
+            # Bun 실행 파일이 존재하는지 확인 후 실행
+            if os.path.exists(BUN_EXECUTABLE):
+                cmd = BUN_EXECUTABLE
+            else:
+                # 경로에 없다면 시스템 PATH에서 'bun'을 찾도록 시도
+                cmd = "bun"
+
+            # TypeScript 로직 실행
             result = subprocess.run(
-                [BUN_EXECUTABLE, "run", script_path],
-                check=True,
-                capture_output=True,
+                [cmd, "run", script_path], 
+                check=True, 
+                capture_output=True, 
                 text=True
             )
             
             if result.stdout:
                 print(f"✅ [MCP 결과]: {result.stdout.strip()}")
             
-            # 1분마다 한 번씩 확인
+            # 1분(60초)마다 한 번씩 시트의 변화를 확인
             time.sleep(60) 
-        except subprocess.CalledProcessError as e:
-            print(f"❌ [MCP 실행 에러]: {e.stderr}")
-            time.sleep(20)
         except Exception as e:
-            print(f"❌ [시스템 에러]: {e}")
-            # 경로가 잘못되었는지 다시 한번 출력
-            if not os.path.exists(BUN_EXECUTABLE):
-                print(f"⚠️ 경고: '{BUN_EXECUTABLE}' 경로에 bun 파일이 없습니다. Render 설정을 확인하세요.")
-            time.sleep(20)
+            print(f"❌ [Error] 감시 중 오류 발생: {e}")
+            time.sleep(15) # 에러 발생 시 조금 더 대기 후 재시도
 
 # 3. Render 생존 확인용 엔드포인트
 @app.route('/')
 def health_check():
-    # Render가 이 경로로 접속하여 200 OK를 받으면 'Live' 상태를 유지합니다.
-    return "TOEIC AI Vocabulary Server is Live and Running!", 200
+    return "TOEIC AI Vocabulary Server is Live!", 200
 
-# 4. 서버 실행
+# 4. 메인 실행부
 if __name__ == "__main__":
-    # 시트 감시 로직을 별도 스레드에서 실행 (서버 중단 방지)
+    # 시트 감시 로직을 백그라운드 스레드에서 실행
     monitor_thread = threading.Thread(target=monitor_sheets, daemon=True)
     monitor_thread.start()
 
-    # Render에서 지정한 포트(기본 10000)로 실행
+    # Render 포트 설정 (기본값 10000)
     port = int(os.environ.get("PORT", 10000))
-    print(f"✅ [Render] 서버가 포트 {port}에서 대기 중입니다.")
     
-    # host='0.0.0.0'은 외부 접속 허용을 위해 필수입니다.
+    print(f"✅ [Render] 서버가 포트 {port}에서 대기 중입니다.")
+
+    # host='0.0.0.0' 설정은 외부 접속 및 Render 서비스 유지를 위해 필수입니다.
     app.run(host='0.0.0.0', port=port)
