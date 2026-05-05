@@ -19,7 +19,7 @@ if (!SPREADSHEET_ID) {
 // 구글 서비스 계정 인증 (JSON 키 파일 경로 확인 필요)
 // 보통 mcp-google-sheets 폴더 안에 있는 서비스 계정 키 파일 이름을 넣으세요.
 const auth = new JWT({
-  keyFile: "service-account-key.json", // 이 파일이 실제로 있는지 확인하세요!
+  keyFile: "credentials.json", // 같은 폴더에 있으므로 파일명만 적음
   scopes: ["https://www.googleapis.com/auth/spreadsheets"],
 });
 
