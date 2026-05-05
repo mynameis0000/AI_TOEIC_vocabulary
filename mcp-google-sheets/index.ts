@@ -8,18 +8,18 @@ import { google } from "googleapis";
 import { JWT } from "google-auth-library";
 import * as dotenv from "dotenv";
 
-// 환경 변수 로드 (.env 파일 또는 Render 설정)
+// 환경 변수 로드
 dotenv.config();
 
 const SPREADSHEET_ID = process.env.MY_SPREADSHEET_ID;
 const SERVICE_ACCOUNT_JSON = process.env.GCP_SERVICE_ACCOUNT_JSON;
 
 if (!SPREADSHEET_ID || !SERVICE_ACCOUNT_JSON) {
-  console.error("❌ 필수 환경 변수(MY_SPREADSHEET_ID 또는 GCP_SERVICE_ACCOUNT_JSON)가 누락되었습니다.");
+  console.error("❌ 필수 환경 변수 누락되었습니다.");
   process.exit(1);
 }
 
-// 1. 서비스 계정 인증 설정 (환경 변수 방식)
+// 1. 서비스 계정 인증 설정
 const credentials = JSON.parse(SERVICE_ACCOUNT_JSON);
 const auth = new JWT({
   email: credentials.client_email,
@@ -48,7 +48,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
     tools: [
       {
         name: "initialize_headers",
-        description: "시트에 '단어, 뜻, 예문, 상태' 헤더가 없으면 생성합니다.",
+        description: "시트에 '단어, 뜻, 예문, 상태' 헤더를 생성합니다.",
         inputSchema: { type: "object", properties: {} }
       },
       {
@@ -74,16 +74,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     if (name === "initialize_headers") {
-      // 첫 번째 행 확인 후 헤더 추가
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: "Sheet1!A1:D1",
+        range: "시트1!A1:D1", // 'Sheet1'에서 '시트1'로 변경
       });
 
       if (!response.data.values || response.data.values.length === 0) {
         await sheets.spreadsheets.values.update({
           spreadsheetId: SPREADSHEET_ID,
-          range: "Sheet1!A1",
+          range: "시트1!A1", // '시트1'로 변경
           valueInputOption: "RAW",
           requestBody: {
             values: [["단어", "뜻", "예문", "상태"]],
@@ -98,7 +97,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { word, meaning, example } = args as { word: string; meaning: string; example: string };
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
-        range: "Sheet1!A:D",
+        range: "시트1!A:D", // '시트1'로 변경
         valueInputOption: "RAW",
         requestBody: {
           values: [[word, meaning, example, "새로움"]],
