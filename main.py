@@ -48,7 +48,7 @@ def monitor_sheets():
             # env=os.environ을 통해 파이썬의 모든 환경 변수를 자식 프로세스에 전달합니다.
             result = subprocess.run(
                 [bun_command, "run", script_path],
-                env=os.environ,
+                env=os.environ,  # <--- 이 부분이 Render의 환경 변수를 Bun에게 넘겨주는 핵심입니다!
                 capture_output=True,
                 text=True
             )
