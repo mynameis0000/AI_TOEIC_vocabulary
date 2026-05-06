@@ -6,9 +6,8 @@ mcp_process = None
 
 # 환경 변수 설정
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-# 가장 안정적인 v1beta 주소 체계
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-
+# 가장 범용적으로 작동하는 v1 주소 체계입니다.
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 def run_mcp_server():
     global mcp_process
     print("🚀 MCP 서버 기동 시작...")
