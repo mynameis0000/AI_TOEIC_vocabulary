@@ -8,18 +8,16 @@ import { google } from "googleapis";
 import { JWT } from "google-auth-library";
 import * as dotenv from "dotenv";
 
-// 환경 변수 로드
 dotenv.config();
 
 const SPREADSHEET_ID = process.env.MY_SPREADSHEET_ID;
 const SERVICE_ACCOUNT_JSON = process.env.GCP_SERVICE_ACCOUNT_JSON;
 
 if (!SPREADSHEET_ID || !SERVICE_ACCOUNT_JSON) {
-  console.error("❌ 필수 환경 변수 누락되었습니다.");
+  console.error("❌ 필수 환경 변수 누락");
   process.exit(1);
 }
 
-// 1. 서비스 계정 인증 설정
 const credentials = JSON.parse(SERVICE_ACCOUNT_JSON);
 const auth = new JWT({
   email: credentials.client_email,
@@ -29,37 +27,29 @@ const auth = new JWT({
 
 const sheets = google.sheets({ version: "v4", auth });
 
-// 2. MCP 서버 생성
 const server = new Server(
-  {
-    name: "google-sheets-mcp",
-    version: "1.0.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
+  { name: "google-sheets-mcp", version: "1.0.0" },
+  { capabilities: { tools: {} } }
 );
 
-// 3. 도구(Tools) 목록 정의
+// 1. 도구 정의 (update_row 추가)
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
         name: "initialize_headers",
-        description: "시트에 '단어, 뜻, 예문, 상태' 헤더를 생성합니다.",
+        description: "시트에 헤더를 생성합니다.",
         inputSchema: { type: "object", properties: {} }
       },
       {
-        name: "append_word",
-        description: "시트에 새로운 단어 데이터를 추가합니다.",
+        name: "update_row",
+        description: "특정 단어가 있는 행을 찾아 뜻과 예문을 업데이트합니다.",
         inputSchema: {
           type: "object",
           properties: {
-            word: { type: "string" },
-            meaning: { type: "string" },
-            example: { type: "string" },
+            word: { type: "string", description: "찾을 단어" },
+            meaning: { type: "string", description: "채워넣을 뜻" },
+            example: { type: "string", description: "채워넣을 예문" },
           },
           required: ["word", "meaning", "example"]
         }
@@ -68,58 +58,60 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   };
 });
 
-// 4. 도구 실행 로직
+// 2. 실행 로직
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   try {
     if (name === "initialize_headers") {
-      const response = await sheets.spreadsheets.values.get({
+      await sheets.spreadsheets.values.update({
         spreadsheetId: SPREADSHEET_ID,
-        range: "시트1!A1:D1", // 'Sheet1'에서 '시트1'로 변경
+        range: "시트1!A1",
+        valueInputOption: "RAW",
+        requestBody: { values: [["단어", "뜻", "예문", "상태"]] },
       });
-
-      if (!response.data.values || response.data.values.length === 0) {
-        await sheets.spreadsheets.values.update({
-          spreadsheetId: SPREADSHEET_ID,
-          range: "시트1!A1", // '시트1'로 변경
-          valueInputOption: "RAW",
-          requestBody: {
-            values: [["단어", "뜻", "예문", "상태"]],
-          },
-        });
-        return { content: [{ type: "text", text: "🚀 헤더 생성이 완료되었습니다." }] };
-      }
-      return { content: [{ type: "text", text: "✅ 헤더가 이미 존재합니다." }] };
+      return { content: [{ type: "text", text: "🚀 헤더 생성 완료" }] };
     }
 
-    if (name === "append_word") {
+    if (name === "update_row") {
       const { word, meaning, example } = args as { word: string; meaning: string; example: string };
-      await sheets.spreadsheets.values.append({
+      
+      // A열(단어) 전체를 가져와서 해당 단어가 몇 번째 줄에 있는지 찾습니다.
+      const response = await sheets.spreadsheets.values.get({
         spreadsheetId: SPREADSHEET_ID,
-        range: "시트1!A:D", // '시트1'로 변경
+        range: "시트1!A:A",
+      });
+
+      const rows = response.data.values || [];
+      const rowIndex = rows.findIndex(r => r[0] === word);
+
+      if (rowIndex === -1) {
+        return { isError: true, content: [{ type: "text", text: `❌ 단어 '${word}'를 찾을 수 없습니다.` }] };
+      }
+
+      // 해당 행의 B, C, D열(뜻, 예문, 상태)을 업데이트합니다.
+      const range = `시트1!B${rowIndex + 1}:D${rowIndex + 1}`;
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: SPREADSHEET_ID,
+        range,
         valueInputOption: "RAW",
         requestBody: {
-          values: [[word, meaning, example, "새로움"]],
+          values: [[meaning, example, "AI완료"]],
         },
       });
-      return { content: [{ type: "text", text: `📝 단어 추가 완료: ${word}` }] };
+
+      return { content: [{ type: "text", text: `✅ '${word}' 업데이트 완료 (행: ${rowIndex + 1})` }] };
     }
 
     throw new Error(`알 수 없는 도구: ${name}`);
   } catch (error: any) {
-    return {
-      isError: true,
-      content: [{ type: "text", text: `오류 발생: ${error.message}` }]
-    };
+    return { isError: true, content: [{ type: "text", text: `오류: ${error.message}` }] };
   }
 });
 
-// 5. 서버 실행
 async function runServer() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.log("🚀 Google Sheets MCP Server Running");
 }
 
 runServer().catch(console.error);
