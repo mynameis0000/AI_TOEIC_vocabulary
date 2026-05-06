@@ -8,8 +8,7 @@ mcp_process = None
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
 # 🔗 가장 안정적인 주소 형식으로 수정
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
-
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 def run_mcp_server():
     global mcp_process
     mcp_process = subprocess.Popen(
