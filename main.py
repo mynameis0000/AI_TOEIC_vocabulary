@@ -46,35 +46,47 @@ def init_header():
     return "✅ 헤더 생성 명령을 보냈습니다. 시트를 확인하세요."
 
 # [핵심] 구글 시트 자동 완성 경로
+# main.py의 handle_webhook 부분을 아래로 교체하거나 전체를 업데이트하세요
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
-    print("📢 Webhook 요청 수신됨!")
-    data = request.json
-    print(f"📦 수신 데이터: {data}")
-    word = data.get('word')
-    
-    if not word:
-        return jsonify({"error": "단어가 없습니다."}), 400
-
-    # Gemini AI에게 뜻 물어보기
-    prompt = f"단어 '{word}'의 뜻과 예문을 한국어로 알려줘. JSON 형식으로만 응답해. 형식: {{\"meaning\": \"...\", \"example\": \"...\"}}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    response = requests.post(GEMINI_URL, json=payload)
-    
     try:
-        result_text = response.json()['candidates'][0]['content']['parts'][0]['text']
+        print("📢 Webhook 요청 수신됨!")
+        data = request.json
+        word = data.get('word')
+        
+        if not word:
+            return jsonify({"error": "단어 없음"}), 400
+
+        # Gemini 호출
+        print(f"🤖 Gemini에게 '{word}' 물어보는 중...")
+        prompt = f"단어 '{word}'의 뜻과 예문을 한국어로 알려줘. 반드시 아래 JSON 형식으로만 응답해. 다른 말은 하지마. 형식: {{\"meaning\": \"...\", \"example\": \"...\"}}"
+        payload = {"contents": [{"parts": [{"text": prompt}]}]}
+        response = requests.post(GEMINI_URL, json=payload)
+        
+        # API 응답 확인
+        res_json = response.json()
+        if 'candidates' not in res_json:
+            print(f"❌ Gemini 응답 오류: {res_json}")
+            return jsonify({"error": "Gemini 응답 실패"}), 500
+
+        result_text = res_json['candidates'][0]['content']['parts'][0]['text']
+        # JSON 추출 로직 강화
         clean_json = result_text.replace("```json", "").replace("```", "").strip()
         ai_res = json.loads(clean_json)
         
-        # MCP로 시트 업데이트
+        print(f"✅ AI 해석 완료: {ai_res['meaning']}")
+
+        # MCP 업데이트 명령
         call_mcp_tool("update_row", {
             "word": word,
             "meaning": ai_res['meaning'],
             "example": ai_res['example']
         })
+        
         return jsonify({"status": "success", "word": word})
+
     except Exception as e:
-        print(f"❌ 처리 오류: {e}")
+        print(f"🔥 서버 내부 에러 발생: {str(e)}") # 어떤 에러인지 로그에 찍힙니다
         return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/')
