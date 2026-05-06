@@ -4,11 +4,11 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 mcp_process = None
 
-# 환경 변수에서 API 키 가져오기
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 
-# 🔗 가장 안정적인 주소 형식으로 수정
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+# 🔗 모델명을 포함한 가장 표준적인 주소 (v1beta 유지)
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+
 def run_mcp_server():
     global mcp_process
     mcp_process = subprocess.Popen(
@@ -32,34 +32,49 @@ def handle_webhook():
     try:
         data = request.json
         word = data.get('word')
-        print(f"🔍 단어 수신: {word}")
+        print(f"🔍 [1단계] 단어 수신: {word}")
 
-        # AI 호출
-        prompt = f"단어 '{word}'의 뜻과 예문을 한국어로 알려줘. JSON으로만 답해: {{\"meaning\": \"뜻\", \"example\": \"예문\"}}"
-        resp = requests.post(GEMINI_URL, json={"contents": [{"parts": [{"text": prompt}]}]})
+        # AI 호출용 데이터 설정
+        payload = {
+            "contents": [{
+                "parts": [{"text": f"단어 '{word}'의 뜻과 예문을 한국어로 알려줘. JSON으로만 답해: {{\"meaning\": \"...\", \"example\": \"...\"}}"}]
+            }]
+        }
+        
+        # 호출 및 응답 확인
+        resp = requests.post(GEMINI_URL, json=payload)
         res_data = resp.json()
 
-        # 응답 구조가 평소와 다를 경우를 대비한 안전 장치
+        # ⚠️ 에러 발생 시 로그를 아주 상세하게 출력 (범인 검거용)
         if 'candidates' not in res_data:
-            print(f"🔥 Gemini 에러 응답: {res_data}")
-            return jsonify(res_data), 500
+            print(f"🔥 [Gemini 상세 에러]: {json.dumps(res_data, indent=2, ensure_ascii=False)}")
+            return jsonify({"error": "Gemini 응답 실패", "raw": res_data}), 500
 
         text = res_data['candidates'][0]['content']['parts'][0]['text']
+        
+        # JSON 데이터 추출
         json_match = re.search(r'\{.*\}', text, re.DOTALL)
+        if not json_match:
+            raise ValueError("AI가 JSON 형식이 아닌 답변을 보냈습니다.")
+            
         ai_res = json.loads(json_match.group())
 
-        # MCP 업데이트
-        call_mcp_tool("update_row", {"word": word, "meaning": ai_res['meaning'], "example": ai_res['example']})
+        # MCP 도구 호출 (시트에 쓰기)
+        call_mcp_tool("update_row", {
+            "word": word,
+            "meaning": ai_res['meaning'],
+            "example": ai_res['example']
+        })
         
-        print(f"✅ '{word}' 업데이트 성공")
+        print(f"✅ [처리 완료] 단어: {word}")
         return jsonify({"status": "success"})
 
     except Exception as e:
-        print(f"🔥 에러 발생: {str(e)}")
+        print(f"🔥 [서버 에러]: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/')
-def health(): return "Online", 200
+def health(): return "AI Word Master Online", 200
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 10000)))
