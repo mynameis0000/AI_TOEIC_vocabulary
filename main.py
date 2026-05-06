@@ -2,14 +2,14 @@ import os
 import subprocess
 import threading
 import json
-import requests  # Gemini API 호출용
+import requests
 from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 mcp_process = None
 
-# --- Gemini 설정 ---
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY") # Render 대시보드에 추가 필요
+# --- 1. 환경 변수 체크 ---
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
 
 def run_mcp_server():
@@ -37,46 +37,45 @@ def call_mcp_tool(name, arguments={}):
     mcp_process.stdin.flush()
     return {"status": "sent"}
 
-# --- 핵심 기능: AI에게 단어 정보 물어보기 ---
-def ask_gemini(word):
-    prompt = f"단어 '{word}'의 뜻과 예문을 한국어로 알려줘. JSON 형식으로만 응답해. 형식: {{\"meaning\": \"...\", \"example\": \"...\"}}"
-    payload = {"contents": [{"parts": [{"text": prompt}]}]}
-    response = requests.post(GEMINI_URL, json=payload)
-    
-    try:
-        # Gemini 응답에서 JSON 텍스트만 추출
-        result_text = response.json()['candidates'][0]['content']['parts'][0]['text']
-        # 마크다운 코드 블록 제거 후 파싱
-        clean_json = result_text.replace("```json", "").replace("```", "").strip()
-        return json.loads(clean_json)
-    except Exception as e:
-        print(f"❌ Gemini 응답 파싱 실패: {e}")
-        return None
+# --- 2. 경로 설정 (중요!) ---
 
-# --- 구글 시트에서 신호를 받을 엔드포인트 ---
+# [테스트용] 헤더 생성 경로
+@app.route('/init-header')
+def init_header():
+    call_mcp_tool("initialize_headers")
+    return "✅ 헤더 생성 명령을 보냈습니다. 시트를 확인하세요."
+
+# [핵심] 구글 시트 자동 완성 경로
 @app.route('/webhook', methods=['POST'])
 def handle_webhook():
+    print("📢 Webhook 요청 수신됨!")
     data = request.json
+    print(f"📦 수신 데이터: {data}")
     word = data.get('word')
     
     if not word:
         return jsonify({"error": "단어가 없습니다."}), 400
 
-    print(f"🔍 새 단어 감지: {word}")
-
-    # 1. Gemini에게 물어보기
-    ai_res = ask_gemini(word)
+    # Gemini AI에게 뜻 물어보기
+    prompt = f"단어 '{word}'의 뜻과 예문을 한국어로 알려줘. JSON 형식으로만 응답해. 형식: {{\"meaning\": \"...\", \"example\": \"...\"}}"
+    payload = {"contents": [{"parts": [{"text": prompt}]}]}
+    response = requests.post(GEMINI_URL, json=payload)
     
-    if ai_res:
-        # 2. MCP를 통해 시트 업데이트 (update_row 도구 사용)
+    try:
+        result_text = response.json()['candidates'][0]['content']['parts'][0]['text']
+        clean_json = result_text.replace("```json", "").replace("```", "").strip()
+        ai_res = json.loads(clean_json)
+        
+        # MCP로 시트 업데이트
         call_mcp_tool("update_row", {
             "word": word,
             "meaning": ai_res['meaning'],
             "example": ai_res['example']
         })
-        return jsonify({"status": "success", "word": word}), 200
-    
-    return jsonify({"status": "failed"}), 500
+        return jsonify({"status": "success", "word": word})
+    except Exception as e:
+        print(f"❌ 처리 오류: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/')
 def health():
