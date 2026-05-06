@@ -31,40 +31,35 @@ def handle_webhook():
     try:
         data = request.json
         word = data.get('word')
-        print(f"🔍 [수신] 단어: {word}")
+        print(f"🔍 [1단계] 단어 수신: {word}")
 
-        # 1. Gemini AI 호출 (프롬프트 강화)
-        prompt = f"단어 '{word}'의 뜻과 예문을 한국어로 알려줘. 다른 설명 없이 오직 JSON 데이터만 출력해. 형식: {{\"meaning\": \"뜻\", \"example\": \"예문\"}}"
-        resp = requests.post(GEMINI_URL, json={"contents": [{"parts": [{"text": prompt}]}]})
+        # Gemini 호출
+        resp = requests.post(GEMINI_URL, json={"contents": [{"parts": [{"text": f"단어 '{word}'의 뜻과 예문을 한국어로 알려줘. JSON으로만 답해: {{\"meaning\": \"...\", \"example\": \"...\"}}"}]}]})
         res_data = resp.json()
+        
+        # ⚠️ 여기가 핵심: AI의 전체 응답을 로그에 찍습니다.
+        print(f"📦 [2단계] AI 응답 전체: {json.dumps(res_data, ensure_ascii=False)}")
 
-        # 에러 핸들링
         if 'candidates' not in res_data:
-            print(f"🔥 AI 응답 실패: {res_data}")
-            return jsonify({"error": "AI 응답 실패"}), 500
+            print("🔥 Gemini API 키 문제 혹은 할당량 초과입니다.")
+            return jsonify(res_data), 500
 
-        raw_text = res_data['candidates'][0]['content']['parts'][0]['text']
+        text = res_data['candidates'][0]['content']['parts'][0]['text']
+        print(f"📝 [3단계] 추출된 텍스트: {text}")
+
+        # JSON 추출
+        clean_json = re.search(r'\{.*\}', text, re.DOTALL).group()
+        ai_res = json.loads(clean_json)
+
+        # MCP 호출
+        call_mcp_tool("update_row", {"word": word, "meaning": ai_res['meaning'], "example": ai_res['example']})
         
-        # 2. JSON 데이터만 정교하게 추출 (정규식 사용)
-        json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
-        if json_match:
-            ai_res = json.loads(json_match.group())
-        else:
-            raise ValueError("AI 응답에서 JSON을 찾을 수 없음")
-
-        print(f"✨ [해석 완료] 뜻: {ai_res['meaning']}")
-
-        # 3. MCP를 통한 시트 업데이트
-        call_mcp_tool("update_row", {
-            "word": word,
-            "meaning": ai_res['meaning'],
-            "example": ai_res['example']
-        })
-        
-        return jsonify({"status": "success", "word": word})
+        print(f"✅ [4단계] 처리 완료")
+        return jsonify({"status": "ok"})
 
     except Exception as e:
-        print(f"🔥 [최종 에러 상세]: {str(e)}")
+        print(f"🔥 [최종 에러 발생]: {str(e)}")
+        # 에러가 나면 AI가 준 생데이터를 다시 한번 찍습니다.
         return jsonify({"error": str(e)}), 500
 
 @app.route('/init-header')
