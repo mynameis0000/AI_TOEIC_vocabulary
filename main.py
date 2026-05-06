@@ -6,7 +6,7 @@ mcp_process = None
 
 # 환경 변수 및 API 설정
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
 
 # 1. MCP 서버(index.ts) 실행 함수
 def run_mcp_server():
