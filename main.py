@@ -22,54 +22,36 @@ def home():
 
 # Gemini API 호출 함수
 def get_ai_response(word):
+
     try:
         api_key = os.environ.get("GEMINI_API_KEY")
 
         if not api_key:
-            logger.error("GEMINI_API_KEY missing")
+            logger.error("API KEY missing")
             return "API KEY 오류"
 
-        # 현재 가장 안정적으로 시도할 모델
         url = (
-            f"https://generativelanguage.googleapis.com/"
-            f"v1beta/models/gemini-pro:generateContent"
-            f"?key={api_key}"
+            "https://generativelanguage.googleapis.com/"
+            f"v1beta/models/gemini-pro:generateContent?key={api_key}"
         )
 
         headers = {
             "Content-Type": "application/json"
         }
 
-        if response.status_code == 429:
-            return "API 사용량 초과. 잠시 후 다시 시도해주세요."
-
-        prompt = f"""
-영단어: {word}
-
-다음을 출력해줘.
-
-1. 한국어 뜻
-2. 영어 예문
-3. 예문 해석
-
-형식:
-뜻:
-예문:
-해석:
-"""
-
         data = {
             "contents": [
                 {
                     "parts": [
                         {
-                            "text": prompt
+                            "text": f"{word} 뜻과 예문을 알려줘"
                         }
                     ]
                 }
             ]
         }
 
+        # response 반드시 여기서 생성
         response = requests.post(
             url,
             headers=headers,
@@ -80,20 +62,26 @@ def get_ai_response(word):
         logger.info(f"Gemini Status: {response.status_code}")
         logger.info(response.text)
 
+        # quota 초과 처리
+        if response.status_code == 429:
+            return "API 사용량 초과. 잠시 후 다시 시도해주세요."
+
+        # 일반 오류 처리
         if response.status_code != 200:
             return f"API 오류: {response.text}"
 
         result = response.json()
 
-        # 응답 구조 확인
+        # 응답 구조 검사
         if "candidates" not in result:
-            logger.error(f"Invalid response: {result}")
-            return "응답 형식 오류"
+            return "AI 응답 형식 오류"
 
         return result["candidates"][0]["content"]["parts"][0]["text"]
 
     except Exception as e:
+
         logger.error(f"AI Error: {str(e)}")
+
         return "AI 분석 오류"
 
 
