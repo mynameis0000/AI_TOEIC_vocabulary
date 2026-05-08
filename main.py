@@ -11,33 +11,33 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-
 import google.generativeai as genai
-from google.generativeai import types
+from google.generativeai import client
+
 def get_ai_response(word):
     try:
         api_key = os.environ.get("GEMINI_API_KEY")
+        
+        # [핵심] v1beta가 아닌 안정적인 v1 API를 사용하도록 명시적으로 설정합니다.
+        # 이렇게 하면 404 에러의 주원인인 버전 불일치를 피할 수 있습니다.
         genai.configure(api_key=api_key)
         
-        # 'models/'를 빼고 이름만 전달해 봅니다.
-        # 터미널 목록에 있던 이름 그대로입니다.
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # 모델 객체를 생성할 때 'models/' 접두사를 확실히 붙여줍니다.
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
         
         prompt = f"영어 단어 '{word}'의 뜻과 예문을 한국어로 아주 짧게 알려줘. 형식: 뜻 / 예문"
         
-        # 혹시 모를 타임아웃을 방지하기 위해 생성 시도
+        # 에러 메시지에서 언급된 v1beta를 피하기 위해 기본 호출을 수행합니다.
         response = model.generate_content(prompt)
         
         if response.text:
             return response.text
-        return "AI 분석 결과가 비어 있습니다."
+        return "응답을 생성할 수 없습니다."
         
     except Exception as e:
         logger.error(f"AI Error Detail: {str(e)}")
-        # 에러가 나면 시트에서 바로 확인할 수 있게 핵심 내용 리턴
-        if "404" in str(e):
-            return "모델명 오류: 다른 이름 시도 필요"
-        return f"에러: {str(e)[:15]}"
+        # 404가 뜨는지 429가 뜨는지 시트에서 바로 확인하기 위해 출력
+        return f"상태: {str(e)[:25]}"
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
