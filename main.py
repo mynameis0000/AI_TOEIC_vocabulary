@@ -16,17 +16,20 @@ def get_ai_response(word):
     try:
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
-            return "에러: API 키를 찾을 수 없음" # 시트에 직접 표시됨
+            return "ERROR: API Key Missing"
         
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        
+        # 모델명을 'gemini-pro'에서 'gemini-1.5-flash'로 변경
+        # gemini-1.5-flash는 속도가 매우 빠르고 효율적입니다.
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"영어 단어 '{word}'의 뜻과 예문을 한국어로 아주 짧게 알려줘. 형식: 뜻 / 예문"
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        logger.error(f"AI 분석 에러: {str(e)}")
-        return f"AI 분석 실패: {str(e)[:20]}" # 에러 내용 앞부분을 시트에 표시
+        logger.error(f"AI Analysis Error: {str(e)}")
+        return f"AI 분석 실패: {str(e)[:20]}"
     
 
 @app.route('/webhook', methods=['POST'])
