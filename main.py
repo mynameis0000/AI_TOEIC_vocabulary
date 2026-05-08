@@ -15,22 +15,25 @@ app = Flask(__name__)
 import google.generativeai as genai
 from google.generativeai import types
 
+import google.generativeai as genai
+
 def get_ai_response(word):
     try:
         api_key = os.environ.get("GEMINI_API_KEY")
-        # transport 설정을 지우고 기본값으로 초기화합니다.
+        # 다른 설정 없이 키만 딱 설정합니다.
         genai.configure(api_key=api_key) 
         
-        # 모델명도 목록에서 확인했던 확실한 것으로 고정
-        model = genai.GenerativeModel('gemini-2.0-flash')
+        # 'latest'를 붙여서 404 에러를 방지합니다.
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         
         prompt = f"영어 단어 '{word}'의 뜻과 예문을 한국어로 아주 짧게 알려줘. 형식: 뜻 / 예문"
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        logger.error(f"AI Error: {str(e)}")
-        # 에러 메시지 전체를 출력해서 정확한 원인을 다시 파악합니다.
-        return f"에러: {str(e)}"
+        # 할당량 초과(429) 에러 시 사용자에게 알림
+        if "429" in str(e):
+            return "잠시 후 다시 시도 (할당량 초과)"
+        return f"에러: {str(e)[:20]}"
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
