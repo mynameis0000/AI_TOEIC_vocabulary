@@ -22,8 +22,7 @@ def get_ai_response(word):
             logger.error("GEMINI_API_KEY missing")
             return "API KEY 오류"
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key={api_key}"
-
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={api_key}"
         headers = {
             "Content-Type": "application/json"
         }
