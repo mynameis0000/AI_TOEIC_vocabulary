@@ -18,19 +18,19 @@ from google.generativeai import types
 def get_ai_response(word):
     try:
         api_key = os.environ.get("GEMINI_API_KEY")
-        # 특정 버전(v1beta)을 명시적으로 사용하면 지역 제한을 우회하는 경우가 있습니다.
-        genai.configure(api_key=api_key, transport='rest') 
+        # transport 설정을 지우고 기본값으로 초기화합니다.
+        genai.configure(api_key=api_key) 
         
+        # 모델명도 목록에서 확인했던 확실한 것으로 고정
         model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"영어 단어 '{word}'의 뜻과 예문을 한국어로 아주 짧게 알려줘. 형식: 뜻 / 예문"
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        # 에러 메시지가 여전히 지역 문제라면 로그에 찍어 확인
         logger.error(f"AI Error: {str(e)}")
-        return f"지역/인증 에러 발생"
-
+        # 에러 메시지 전체를 출력해서 정확한 원인을 다시 파악합니다.
+        return f"에러: {str(e)}"
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
