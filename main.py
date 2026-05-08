@@ -22,7 +22,7 @@ def get_ai_response(word):
         genai.configure(api_key=api_key) 
         
         # 모델명도 목록에서 확인했던 확실한 것으로 고정
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-2.0-flash')
         
         prompt = f"영어 단어 '{word}'의 뜻과 예문을 한국어로 아주 짧게 알려줘. 형식: 뜻 / 예문"
         response = model.generate_content(prompt)
