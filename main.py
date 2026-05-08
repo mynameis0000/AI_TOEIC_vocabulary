@@ -13,11 +13,10 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 def get_ai_response(word):
-    """Gemini API를 사용하여 단어 분석"""
     try:
         api_key = os.environ.get("GEMINI_API_KEY")
         if not api_key:
-            return "ERROR: Gemini API Key Missing"
+            return "에러: API 키를 찾을 수 없음" # 시트에 직접 표시됨
         
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel('gemini-pro')
@@ -26,8 +25,9 @@ def get_ai_response(word):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        logger.error(f"AI Analysis Error: {str(e)}")
-        return "AI 분석 실패"
+        logger.error(f"AI 분석 에러: {str(e)}")
+        return f"AI 분석 실패: {str(e)[:20]}" # 에러 내용 앞부분을 시트에 표시
+    
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
