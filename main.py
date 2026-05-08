@@ -25,6 +25,8 @@ def get_ai_response(word):
         logger.error(f"AI 분석 에러: {str(e)}")
         return "AI 분석 실패"
 
+# (상단 import 및 get_ai_response 함수는 이전과 동일)
+
 @app.route('/webhook', methods=['POST'])
 def webhook():
     try:
@@ -33,39 +35,45 @@ def webhook():
         spreadsheet_id = data.get('spreadsheetId')
         row_index = data.get('rowIndex')
 
-        if not word or not spreadsheet_id:
-            return jsonify({"error": "데이터 누락"}), 400
+        # 데이터 검증
+        if not all([word, spreadsheet_id, row_index]):
+            return jsonify({"error": "Data missing"}), 400
 
-        # 환경 변수에서 구글 인증 정보 가져오기
-        creds_raw = os.environ.get('GOOGLE_SHEETS_CREDENTIALS')
+        # 1. 환경 변수명 확인 (Render에 등록한 이름과 일치해야 함)
+        # 만약 Render에 'MY_GCP_KEY'라고 저장했다면 아래 이름을 수정하세요.
+        creds_raw = os.environ.get('GOOGLE_SHEETS_CREDENTIALS') 
+        
         if not creds_raw:
-            logger.error("환경 변수 GOOGLE_SHEETS_CREDENTIALS가 설정되지 않았습니다.")
-            return jsonify({"error": "Env Var Missing"}), 500
+            logger.error("환경 변수가 설정되지 않았습니다.")
+            return jsonify({"error": "Environment variable missing"}), 500
             
         creds_info = json.loads(creds_raw)
-        
-        # 구글 시트 인증 및 연결
         scopes = ['https://www.googleapis.com/auth/spreadsheets']
         creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
         client = gspread.authorize(creds)
         
-        # 시트 열기 (반드시 '시트1' 이름 확인!)
+        # 2. 시트 열기 ('시트1' 이름 명시)
         sh = client.open_by_key(spreadsheet_id)
-        worksheet = sh.worksheet("시트1") 
+        try:
+            worksheet = sh.worksheet("시트1") 
+        except gspread.exceptions.WorksheetNotFound:
+            # 혹시나 '시트1'이 없을 경우를 대비해 첫 번째 시트라도 가져오도록 예외 처리
+            worksheet = sh.get_worksheet(0)
+            logger.warning("'시트1'을 찾지 못해 첫 번째 워크시트를 선택했습니다.")
         
-        # AI 결과 생성
+        # 3. AI 결과 생성 및 업데이트
         result = get_ai_response(word)
         
-        # B열(2번째 칸)에 결과 업데이트
+        # 업데이트 (2열: B열)
         worksheet.update_cell(row_index, 2, result)
         
-        logger.info(f"성공: {word} -> {result}")
+        logger.info(f"성공: {word} 업데이트 완료")
         return jsonify({"status": "success"}), 200
 
     except Exception as e:
-        logger.error(f"서버 에러: {str(e)}")
-        return jsonify({"error": str(e)}), 500
-
+        logger.error(f"상세 에러: {str(e)}")
+        return jsonify({"error": "Internal Server Error"}), 500
+    
 if __name__ == "__main__":
     # Render 환경에서 포트 설정 필수
     port = int(os.environ.get("PORT", 10000))
