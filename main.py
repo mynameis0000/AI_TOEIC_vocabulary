@@ -14,36 +14,29 @@ app = Flask(__name__)
 
 import google.generativeai as genai
 from google.generativeai import types
-
-import google.generativeai as genai
-
-def get_ai_response(word):
+ def get_ai_response(word):
     try:
         api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            return "ERROR: API KEY MISSING"
-            
         genai.configure(api_key=api_key)
         
-        # 1.5 flash 모델의 가장 정확한 풀 네임을 사용합니다.
-        # 만약 이것도 404가 뜨면 'gemini-1.5-flash-latest'로 바꿔보세요.
-        model = genai.GenerativeModel('models/gemini-1.5-flash')
+        # 'models/'를 빼고 이름만 전달해 봅니다.
+        # 터미널 목록에 있던 이름 그대로입니다.
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         prompt = f"영어 단어 '{word}'의 뜻과 예문을 한국어로 아주 짧게 알려줘. 형식: 뜻 / 예문"
         
-        # 안전한 생성을 위해 약간의 설정을 추가합니다.
+        # 혹시 모를 타임아웃을 방지하기 위해 생성 시도
         response = model.generate_content(prompt)
         
-        if response and response.text:
+        if response.text:
             return response.text
-        else:
-            return "AI 응답 없음"
-            
+        return "AI 분석 결과가 비어 있습니다."
+        
     except Exception as e:
-        logger.error(f"AI Error: {str(e)}")
-        # 에러 메시지가 너무 길면 시트가 지저분해지므로 핵심만 리턴
-        if "429" in str(e):
-            return "할당량 초과 (잠시 후 시도)"
+        logger.error(f"AI Error Detail: {str(e)}")
+        # 에러가 나면 시트에서 바로 확인할 수 있게 핵심 내용 리턴
+        if "404" in str(e):
+            return "모델명 오류: 다른 이름 시도 필요"
         return f"에러: {str(e)[:15]}"
 
 @app.route('/webhook', methods=['POST'])
