@@ -1,8 +1,9 @@
 import os
 import json
 import logging
+import requests
+
 from flask import Flask, request, jsonify
-import google.generativeai as genai
 import gspread
 from google.oauth2.service_account import Credentials
 
