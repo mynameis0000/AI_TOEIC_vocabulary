@@ -32,13 +32,16 @@ def get_ai_response(word):
         # 현재 가장 안정적으로 시도할 모델
         url = (
             f"https://generativelanguage.googleapis.com/"
-            f"v1beta/models/gemini-2.0-flash:generateContent"
+            f"v1beta/models/gemini-pro:generateContent"
             f"?key={api_key}"
         )
 
         headers = {
             "Content-Type": "application/json"
         }
+
+        if response.status_code == 429:
+            return "API 사용량 초과. 잠시 후 다시 시도해주세요."
 
         prompt = f"""
 영단어: {word}
