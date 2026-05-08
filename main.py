@@ -14,7 +14,7 @@ app = Flask(__name__)
 
 import google.generativeai as genai
 from google.generativeai import types
- def get_ai_response(word):
+def get_ai_response(word):
     try:
         api_key = os.environ.get("GEMINI_API_KEY")
         genai.configure(api_key=api_key)
