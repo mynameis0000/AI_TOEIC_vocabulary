@@ -23,9 +23,9 @@ def get_ai_response(word):
             return "API KEY 오류"
 
         url = (
-            f"https://generativelanguage.googleapis.com/v1/models/"
-            f"gemini-1.5-flash:generateContent?key={api_key}"
-        )
+    f"https://generativelanguage.googleapis.com/v1beta/models/"
+    f"gemini-1.5-flash-latest:generateContent?key={api_key}"
+)
 
         headers = {
             "Content-Type": "application/json"
