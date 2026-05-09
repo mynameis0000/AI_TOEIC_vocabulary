@@ -23,7 +23,7 @@ def get_batch_ai_response(words):
     try:
         api_key = os.getenv("GEMINI_API_KEY")
         # 모델은 안정적인 gemini-1.5-flash 권장
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
         
         # 여러 단어를 하나의 프롬프트로 묶음 (토큰 절약 핵심)
         word_list_str = ", ".join(words)
