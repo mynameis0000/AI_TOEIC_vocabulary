@@ -22,7 +22,7 @@ app = Flask(__name__) # <-- app 정의
 def get_batch_ai_response(words):
     try:
         api_key = os.getenv("GEMINI_API_KEY")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
 
         word_list_str = ", ".join(words)
         
