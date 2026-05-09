@@ -22,35 +22,51 @@ app = Flask(__name__) # <-- app 정의
 def get_batch_ai_response(words):
     try:
         api_key = os.getenv("GEMINI_API_KEY")
-        # 모델은 안정적인 gemini-1.5-flash 권장
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        
-        # 여러 단어를 하나의 프롬프트로 묶음 (토큰 절약 핵심)
-        word_list_str = ", ".join(words)
-        prompt = f"""
-다음 단어들의 [뜻 | 품사 | 예문]을 작성해줘.
-각 단어는 반드시 줄바꿈(Enter)으로 구분하고, 설명 없이 형식만 맞춰서 답해줘.
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
 
-단어 목록: {word_list_str}
+        word_list_str = ", ".join(words)
+        
+        # 지시 사항을 더 구체적이고 엄격하게 수정
+        prompt = f"""
+Input Words: {word_list_str}
+
+각 단어에 대해 아래 규칙을 엄격히 지켜서 [뜻 | 품사 | 예문]을 작성해:
+
+1. 형식: 뜻 | 품사 | 영어 예문 (대괄호 '[]' 절대 사용 금지)
+2. 예문: 반드시 '영어'로만 작성하고 한글 해석은 포함하지 마.
+3. 중복 방지: 
+   - 뜻이 여러 개라면 가장 중요한 것 최대 2개만 요약해서 적어.
+   - 품사는 '동사', '명사', '형용사' 등 한국어로 적되, 뜻이 2개라면 '동사(2개)' 또는 '동사, 명사'와 같이 표시해.
+4. 구분: 각 단어는 반드시 줄바꿈(Enter)으로 구분해.
+
+출력 예시:
+사과 | 명사 | I ate an apple.
+달리다 | 동사 | I run fast.
 """
 
         data = {
             "contents": [{"parts": [{"text": prompt}]}]
         }
 
-        response = requests.post(url, json=data)
+        response = requests.post(url, json=data, timeout=15)
+        
         if response.status_code != 200:
+            logger.error(f"API Error: {response.text}")
             return None
 
         result = response.json()
         full_text = result["candidates"][0]["content"]["parts"][0]["text"]
         
-        # AI 응답을 줄 단위로 쪼개서 리스트로 반환
-        return [line.strip() for line in full_text.strip().split('\n') if "|" in line]
+        # [ ] 대괄호가 혹시라도 포함되면 강제로 제거하는 안전장치
+        clean_text = full_text.replace("[", "").replace("]", "")
+        
+        lines = [line.strip() for line in clean_text.strip().split('\n') if "|" in line]
+        return lines
 
     except Exception as e:
-        logger.error(f"AI Error: {str(e)}")
+        logger.error(f"AI Connection Exception: {str(e)}")
         return None
+
 
 @app.route("/webhook", methods=["POST"])
 def webhook():
