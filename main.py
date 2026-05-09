@@ -1,3 +1,5 @@
+#gemini-2.5-flash사용하고 있었음
+
 import os
 import json
 import logging
@@ -8,156 +10,86 @@ from flask import Flask, request, jsonify
 from dotenv import load_dotenv
 from google.oauth2.service_account import Credentials
 
-load_dotenv()
+import time # 속도 조절을 위한 추가
 
+# 라이브러리 임포트 아래에 위치해야 합니다.
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__) # <-- logger 정의
 
-app = Flask(__name__)
+app = Flask(__name__) # <-- app 정의
 
 
-def get_ai_response(word):
-
+def get_batch_ai_response(words):
     try:
         api_key = os.getenv("GEMINI_API_KEY")
-
-        url = (
-            "https://generativelanguage.googleapis.com/"
-            f"v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
-        )
-
-        headers = {
-            "Content-Type": "application/json"
-        }
-
+        # 모델은 안정적인 gemini-1.5-flash 권장
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
+        
+        # 여러 단어를 하나의 프롬프트로 묶음 (토큰 절약 핵심)
+        word_list_str = ", ".join(words)
         prompt = f"""
-입력 단어: {word}
+다음 단어들의 [뜻 | 품사 | 예문]을 작성해줘.
+각 단어는 반드시 줄바꿈(Enter)으로 구분하고, 설명 없이 형식만 맞춰서 답해줘.
 
-반드시 아래 형식으로만 답변:
-
-뜻 | 품사 | 짧은 영어 예문
-
-예시:
-사과 | 명사 | I ate an apple.
-
-설명 금지.
+단어 목록: {word_list_str}
 """
 
         data = {
-            "contents": [
-                {
-                    "parts": [
-                        {
-                            "text": prompt
-                        }
-                    ]
-                }
-            ]
+            "contents": [{"parts": [{"text": prompt}]}]
         }
 
-        response = requests.post(
-            url,
-            headers=headers,
-            json=data
-        )
-
+        response = requests.post(url, json=data)
         if response.status_code != 200:
-            logger.error(response.text)
             return None
 
         result = response.json()
-
-        text = result["candidates"][0]["content"]["parts"][0]["text"]
-
-        return text.strip()
+        full_text = result["candidates"][0]["content"]["parts"][0]["text"]
+        
+        # AI 응답을 줄 단위로 쪼개서 리스트로 반환
+        return [line.strip() for line in full_text.strip().split('\n') if "|" in line]
 
     except Exception as e:
         logger.error(f"AI Error: {str(e)}")
         return None
 
-
 @app.route("/webhook", methods=["POST"])
 def webhook():
-
     try:
         data = request.get_json()
-
-        word = data.get("word")
+        words = data.get("words") # 단어 '리스트' 수신
         spreadsheet_id = data.get("spreadsheetId")
-        row_index = data.get("rowIndex")
+        row_indices = data.get("rowIndices") # 행 번호 '리스트' 수신
 
-        logger.info(f"Received word: {word}")
+        if not words or not spreadsheet_id:
+            return jsonify({"error": "Missing data"}), 400
 
-        if not all([word, spreadsheet_id, row_index]):
-            return jsonify({
-                "error": "Missing data"
-            }), 400
+        # 1. AI 분석 수행 (한 번의 호출로 여러 단어 처리)
+        ai_results = get_batch_ai_response(words)
+        
+        if not ai_results or len(ai_results) == 0:
+            return jsonify({"error": "AI 분석 실패"}), 500
 
-        # Google Sheets 인증
+        # 2. 구글 시트 인증 및 연결 (기존 로직 동일)
         creds_raw = os.getenv("GOOGLE_SHEETS_CREDENTIALS")
-
         creds_info = json.loads(creds_raw)
-
-        scopes = [
-            "https://www.googleapis.com/auth/spreadsheets"
-        ]
-
-        creds = Credentials.from_service_account_info(
-            creds_info,
-            scopes=scopes
-        )
-
+        creds = Credentials.from_service_account_info(creds_info, scopes=["https://www.googleapis.com/auth/spreadsheets"])
         gc = gspread.authorize(creds)
-
         sh = gc.open_by_key(spreadsheet_id)
+        worksheet = sh.get_worksheet(0) # 첫 번째 시트 선택
 
-        try:
-            worksheet = sh.worksheet("시트1")
+        # 3. 결과 업데이트 (반복문을 돌며 각 행에 기록)
+        for i in range(len(words)):
+            if i < len(ai_results):
+                parts = [p.strip() for p in ai_results[i].split("|")]
+                if len(parts) >= 3:
+                    # B, C, D열에 한꺼번에 업데이트
+                    worksheet.update(f"B{row_indices[i]}:D{row_indices[i]}", [[parts[0], parts[1], parts[2]]])
+            
+            # API 할당량 초과 방지를 위한 미세한 지연 (선택 사항)
+            time.sleep(0.2)
 
-        except:
-            worksheet = sh.get_worksheet(0)
-
-        # Gemini 분석
-        ai_result = get_ai_response(word)
-
-        if not ai_result:
-            return jsonify({
-                "error": "AI failed"
-            }), 500
-
-        # 결과 분리
-        parts = [p.strip() for p in ai_result.split("|")]
-
-        meaning = parts[0] if len(parts) > 0 else "-"
-        pos = parts[1] if len(parts) > 1 else "-"
-        example = parts[2] if len(parts) > 2 else "-"
-
-        # B/C/D열 저장
-        worksheet.update(
-            f"B{row_index}:D{row_index}",
-            [[meaning, pos, example]]
-        )
-
-        logger.info(f"Updated row {row_index}")
-
-        return jsonify({
-            "status": "success"
-        }), 200
+        return jsonify({"status": "success", "count": len(ai_results)}), 200
 
     except Exception as e:
-
-        logger.error(str(e))
-
-        return jsonify({
-            "error": str(e)
-        }), 500
-
-
-if __name__ == "__main__":
-
-    port = int(os.environ.get("PORT", 5000))
-
-    app.run(
-        host="0.0.0.0",
-        port=port
-    )
+        logger.error(f"Error: {str(e)}")
+        return jsonify({"error": str(e)}), 500
