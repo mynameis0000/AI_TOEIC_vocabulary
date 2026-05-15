@@ -19,7 +19,21 @@ function addUserMessage(message) {
 }
 
 
-sendButton.addEventListener("click", () => {
+function addBotMessage(message) {
+
+    const messageDiv = document.createElement("div");
+
+    messageDiv.classList.add("bot-message");
+
+    messageDiv.innerHTML = message.replace(/\n/g, "<br>");
+
+    chatArea.appendChild(messageDiv);
+
+    chatArea.scrollTop = chatArea.scrollHeight;
+}
+
+
+sendButton.addEventListener("click", async () => {
 
     const message = wordInput.value.trim();
 
@@ -30,7 +44,26 @@ sendButton.addEventListener("click", () => {
     addUserMessage(message);
 
     wordInput.value = "";
+
+    const response = await fetch("/generate", {
+
+        method: "POST",
+
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify({
+            word: message
+        })
+    });
+
+    const data = await response.json();
+
+    addBotMessage(data.result);
+
 });
+
 
 wordInput.addEventListener("keydown", (event) => {
 
