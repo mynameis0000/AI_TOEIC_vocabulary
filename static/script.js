@@ -99,3 +99,14 @@ wordInput.addEventListener("keydown", (event) => {
     }
 
 });
+
+const swapButton = document.getElementById("swapButton");
+
+const content = document.querySelector(".content");
+
+
+swapButton.addEventListener("click", () => {
+
+    content.classList.toggle("active");
+
+});
