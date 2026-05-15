@@ -21,7 +21,12 @@ def generate():
 
     result = translate_word(word)
 
+    success = not result.startswith("❌")
+
     return jsonify({
+        "success": success,
+        "word": word,
+        "meaning": result,
         "result": result
     })
 

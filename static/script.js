@@ -32,6 +32,26 @@ function addBotMessage(message) {
     chatArea.scrollTop = chatArea.scrollHeight;
 }
 
+function addSavedWord(word, meaning) {
+
+    const wordDiv = document.createElement("div");
+
+    wordDiv.classList.add("saved-word");
+
+    wordDiv.innerHTML = `
+    
+        <div class="english">
+            ${word}
+        </div>
+
+        <div class="korean">
+            ${meaning}
+        </div>
+    
+    `;
+
+    wordList.appendChild(wordDiv);
+}
 
 sendButton.addEventListener("click", async () => {
 
@@ -61,6 +81,10 @@ sendButton.addEventListener("click", async () => {
     const data = await response.json();
 
     addBotMessage(data.result);
+
+    if (data.success) {
+        addSavedWord(data.word, data.meaning);
+    }
 
 });
 

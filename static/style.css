@@ -161,24 +161,87 @@ body {
 .content {
     flex: 1;
 
-    display: flex;
+    padding: 40px;
 
-    justify-content: center;
-    align-items: center;
+    overflow-y: auto;
 }
 
-.empty-screen {
-    text-align: center;
-}
+/* WORD PANEL */
 
-.empty-screen h2 {
-    font-size: 42px;
-    margin-bottom: 18px;
+.word-panel h2 {
+    margin-bottom: 24px;
+
+    font-size: 28px;
+
     color: #2b2b2b;
 }
 
-.empty-screen p {
+/* CARD GRID */
+
+#wordList {
+
+    display: grid;
+
+    grid-template-columns: repeat(5, 1fr);
+
+    gap: 20px;
+}
+
+/* WORD CARD */
+
+.saved-word {
+
+    width: 100%;
+    height: 150px;
+
+    background: white;
+
+    border-radius: 20px;
+
+    padding: 18px;
+
+    box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+
+    display: flex;
+
+    flex-direction: column;
+
+    justify-content: center;
+
+    align-items: center;
+
+    text-align: center;
+
+    transition: 0.2s;
+}
+
+.saved-word:hover {
+
+    transform: translateY(-4px);
+}
+
+/* ENGLISH */
+
+.saved-word .english {
+
+    font-size: 22px;
+
+    font-weight: bold;
+
+    color: #222;
+
+    margin-bottom: 12px;
+
+    word-break: break-word;
+}
+
+/* KOREAN */
+
+.saved-word .korean {
+
+    font-size: 16px;
+
     color: #666;
-    font-size: 18px;
-    line-height: 1.6;
+
+    word-break: break-word;
 }
