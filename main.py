@@ -15,20 +15,21 @@ def home():
 @app.route("/generate", methods=["POST"])
 def generate():
 
-    data = request.get_json()
+    data = request.get_json() or {}
 
-    word = data.get("word")
+    word = data.get("word", "").strip()
+
+    if not word:
+        return jsonify({
+            "success": False,
+            "word": "",
+            "meaning": "",
+            "result": "단어를 입력해주세요."
+        }), 400
 
     result = translate_word(word)
 
-    success = not result.startswith("❌")
-
-    return jsonify({
-        "success": success,
-        "word": word,
-        "meaning": result,
-        "result": result
-    })
+    return jsonify(result)
 
 
 if __name__ == "__main__":

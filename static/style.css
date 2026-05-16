@@ -131,6 +131,63 @@ body {
     overflow-wrap: break-word;
 }
 
+.suggestion-label {
+
+    margin-top: 14px;
+
+    color: #777;
+
+    font-size: 12px;
+
+    font-weight: 700;
+}
+
+.suggestion-list {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 8px;
+
+    margin-top: 7px;
+}
+
+.suggestion-chip {
+
+    min-height: 34px;
+
+    padding: 0 16px;
+
+    border: 1px solid #d6d8de;
+
+    border-radius: 999px;
+
+    background: #eef0f3;
+
+    color: #444;
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.suggestion-chip:hover {
+
+    background: #e3e6eb;
+
+    border-color: #c7cbd3;
+
+    transform: translateY(-1px);
+}
+
 /* INPUT */
 
 .input-area {
@@ -217,6 +274,62 @@ body {
     font-size: 28px;
 
     color: #2b2b2b;
+}
+
+.category-tabs {
+
+    display: flex;
+
+    flex-wrap: wrap;
+
+    gap: 10px;
+
+    margin-bottom: 24px;
+}
+
+.category-tab {
+
+    min-height: 38px;
+
+    padding: 0 18px;
+
+    border: 1px solid #d8dce4;
+
+    border-radius: 999px;
+
+    background: white;
+
+    color: #555;
+
+    font-size: 14px;
+
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+.category-tab:hover {
+
+    border-color: #bfc5d1;
+
+    background: #f8f9fb;
+}
+
+.category-tab.active {
+
+    border-color: #6d28ff;
+
+    background: #6d28ff;
+
+    color: white;
+
+    box-shadow: 0 8px 18px rgba(109, 40, 255, 0.2);
 }
 
 /* WORD GRID */
@@ -464,6 +577,11 @@ body {
     .word-panel h2 {
 
         font-size: 24px;
+    }
+
+    .category-tabs {
+
+        display: none;
     }
 
     /* CARD LIST */
