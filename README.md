@@ -7,7 +7,7 @@
 영어 단어를 입력하면
 AI 기반 추천 검색어, 번역, 품사 분류 기능을 제공하는
 모바일 중심 영어 학습 서비스입니다.
-
+https://ai-vocabulary.onrender.com
 <br>
 
 <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white">
