@@ -8,9 +8,21 @@ const wordList = document.getElementById("wordList");
 
 const categoryTabs = document.querySelectorAll(".category-tab");
 
+const pdfDownloadButton = document.getElementById("pdfDownloadButton");
+
+const xlsxDownloadButton = document.getElementById("xlsxDownloadButton");
+
 const savedWords = [];
 
 let activeCategory = "all";
+
+const partOfSpeechLabels = {
+    noun: "명사",
+    verb: "동사",
+    adjective: "형용사",
+    adverb: "부사",
+    other: "기타"
+};
 
 
 function addUserMessage(message) {
@@ -124,6 +136,113 @@ function renderSavedWords() {
         .forEach((wordData) => {
             wordList.appendChild(createSavedWordCard(wordData));
         });
+}
+
+function getExportRows() {
+
+    return savedWords.map((wordData) => ({
+        word: wordData.word,
+        meaning: wordData.meaning,
+        partsOfSpeech: wordData.partsOfSpeech
+    }));
+}
+
+function getPartOfSpeechText(partsOfSpeech) {
+
+    return partsOfSpeech
+        .map((partOfSpeech) => partOfSpeechLabels[partOfSpeech] || partOfSpeech)
+        .join(", ");
+}
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function downloadBlob(blob, filename) {
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+
+    URL.revokeObjectURL(url);
+}
+
+async function downloadPdf() {
+
+    const rows = getExportRows();
+
+    if (rows.length === 0) {
+
+        addBotMessage("다운로드할 단어가 없습니다.");
+
+        return;
+    }
+
+    try {
+
+        const response = await fetch("/export/pdf", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                words: rows
+            })
+        });
+
+        const blob = await response.blob();
+
+        downloadBlob(blob, "ai-vocabulary.pdf");
+
+    } catch (error) {
+
+        addBotMessage("PDF 파일을 만드는 중 오류가 발생했습니다.");
+
+        console.error(error);
+    }
+}
+
+async function downloadXlsx() {
+
+    const rows = getExportRows();
+
+    if (rows.length === 0) {
+        addBotMessage("다운로드할 단어가 없습니다.");
+        return;
+    }
+
+    try {
+        const response = await fetch("/export/xlsx", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                words: rows
+            })
+        });
+
+        const blob = await response.blob();
+
+        downloadBlob(blob, "ai-vocabulary.xlsx");
+    } catch (error) {
+        addBotMessage("XLSX 파일을 만드는 중 오류가 발생했습니다.");
+        console.error(error);
+    }
 }
 
 function parseWords(input) {
@@ -242,6 +361,10 @@ categoryTabs.forEach((tab) => {
         renderSavedWords();
     });
 });
+
+pdfDownloadButton.addEventListener("click", downloadPdf);
+
+xlsxDownloadButton.addEventListener("click", downloadXlsx);
 
 swapButton.addEventListener("click", () => {
 

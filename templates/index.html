@@ -55,7 +55,14 @@
 
         <div class="word-panel">
 
-            <h2>Saved Words</h2>
+            <div class="word-panel-header">
+                <h2>Saved Words</h2>
+
+                <div class="download-actions" aria-label="단어장 다운로드">
+                    <button class="download-button" id="pdfDownloadButton" type="button">PDF</button>
+                    <button class="download-button" id="xlsxDownloadButton" type="button">XLSX</button>
+                </div>
+            </div>
 
             <div class="category-tabs" id="categoryTabs" aria-label="단어 품사 필터">
                 <button class="category-tab active" type="button" data-category="all">전체</button>
