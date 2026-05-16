@@ -3,11 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>AI Vocabulary App</title>
-
-    <link rel="stylesheet"
-          href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
 
@@ -15,49 +12,32 @@
 
     <!-- LEFT CHAT SECTION -->
     <div class="sidebar">
-
         <div class="logo-section">
             <h1>AI Vocabulary</h1>
             <p>AI와 함께 단어를 학습해보세요.</p>
         </div>
 
         <div class="chat-area" id="chatArea">
-
             <!-- 기본 AI 메시지 -->
             <div class="bot-message">
                 안녕하세요 👋<br>
                 영어 단어를 입력해보세요!
             </div>
-
         </div>
 
         <div class="input-area">
-
-            <textarea
-                id="wordInput"
-                placeholder="영어 단어 입력..."
-        ></textarea>
-
-            <button id="sendButton">
-                ➤
-            </button>
-
+            <textarea id="wordInput" placeholder="영어 단어 입력..."></textarea>
+            <button id="sendButton">➤</button>
         </div>
-
     </div>
 
     <!-- RIGHT CONTENT -->
     <div class="content">
-
-        <button id="swapButton">
-            📚 단어장 보기
-        </button>
+        <button id="swapButton">📚 단어장 보기</button>
 
         <div class="word-panel">
-
             <div class="word-panel-header">
                 <h2>Saved Words</h2>
-
                 <div class="download-actions" aria-label="단어장 다운로드">
                     <button class="download-button" id="pdfDownloadButton" type="button">PDF</button>
                     <button class="download-button" id="xlsxDownloadButton" type="button">XLSX</button>
@@ -74,16 +54,33 @@
             </div>
 
             <div id="wordList"></div>
-
         </div>
-
-    </div>
-
     </div>
 
 </div>
 
-<script src="{{ url_for('static', filename='script.js') }}"></script>
+<!-- EDIT MODAL (중복 제거 후 1개만 남김) -->
+<div class="edit-modal" id="editModal">
+    <div class="edit-modal-content">
+        <h2>단어 수정</h2>
+        <input type="text" id="editWordInput" placeholder="영어 단어">
+        <input type="text" id="editMeaningInput" placeholder="뜻">
 
+        <div class="edit-part-list">
+            <label><input type="checkbox" value="noun"> 명사</label>
+            <label><input type="checkbox" value="verb"> 동사</label>
+            <label><input type="checkbox" value="adjective"> 형용사</label>
+            <label><input type="checkbox" value="adverb"> 부사</label>
+            <label><input type="checkbox" value="other"> 기타</label>
+        </div>
+
+        <div class="edit-modal-buttons">
+            <button id="saveEditButton">저장</button>
+            <button id="cancelEditButton">취소</button>
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
