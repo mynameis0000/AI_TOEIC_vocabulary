@@ -2,11 +2,11 @@
 
 # AI Vocabulary
 
-### AI 기반 TOEIC 영어 단어 학습 웹앱
+### AI 기반 영어 단어 학습 웹
 
 영어 단어를 입력하면
-AI 기반 추천 검색어, 번역, 품사 분류 기능을 제공하는
-모바일 중심 영어 학습 서비스입니다.
+AI 기반 추천 검색어, 번역, 품사 분류 기능을 제공하는 
+영어 학습 서비스입니다.
 https://ai-vocabulary.onrender.com
 <br>
 
@@ -20,7 +20,7 @@ https://ai-vocabulary.onrender.com
 
 # 📌 Overview
 
-AI Vocabulary는 TOEIC 학습을 위한 AI 기반 영어 단어 학습 웹앱입니다.
+AI Vocabulary는 영단어 학습을 위한 AI 기반 학습 웹입니다.
 
 사용자가 영어 단어를 입력하면:
 
