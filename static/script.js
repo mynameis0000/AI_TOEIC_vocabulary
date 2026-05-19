@@ -534,6 +534,20 @@ async function fetchWord(word) {
     return response.json();
 }
 
+function formatBatchResult(
+    word,
+    data
+) {
+
+    if (data.success) {
+        return data.result;
+    }
+
+    return `${word}: ${data.result.replace(
+        /\n+/g,
+        " "
+    )}`;
+}
 
 function getExportRows() {
 
