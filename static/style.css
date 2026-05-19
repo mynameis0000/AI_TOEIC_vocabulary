@@ -499,3 +499,40 @@ body {
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
     }
 }
+
+.speak-button {
+
+    margin-top: 14px;
+
+    font-size: 20px;
+
+    cursor: pointer;
+
+    width: fit-content;
+
+    transition:
+        transform 0.15s ease;
+}
+
+.speak-button:hover {
+
+    transform: scale(1.1);
+}
+
+#clearWordsButton {
+    border: none;
+    background: #000000;
+    color: white;
+    padding: 10px 14px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    transition:
+        background 0.2s ease,
+        transform 0.15s ease;
+}
+
+#clearWordsButton:hover {
+    opacity: 0.9;
+}
