@@ -170,6 +170,26 @@ function addSavedWord(
     partsOfSpeech = []
 ) {
 
+    const alreadyExists =
+        savedWords.some(
+            (savedWord) =>
+
+                savedWord.word
+                    .trim()
+                    .toLowerCase()
+
+                ===
+
+                word
+                    .trim()
+                    .toLowerCase()
+        );
+
+    if (alreadyExists) {
+
+        return false;
+    }
+
     savedWords.push({
 
         word: word,
@@ -182,6 +202,8 @@ function addSavedWord(
     renderSavedWords();
 
     saveWordsToStorage();
+
+    return true;
 }
 
 
@@ -723,11 +745,22 @@ async function submitWords(input) {
 
             if (data.success) {
 
-                addSavedWord(
-                    data.word,
-                    data.meaning,
-                    data.partsOfSpeech || []
-                );
+                const wasAdded =
+                    addSavedWord(
+                        data.word,
+                        data.meaning,
+                        data.partsOfSpeech || []
+                    );
+
+                if (!wasAdded) {
+
+                    addBotMessage(
+                        `"${data.word}" 단어는 이미 저장되어 있습니다.`
+                    );
+
+                    continue;
+                }
+
             }
 
             (data.suggestions || [])

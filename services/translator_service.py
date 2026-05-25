@@ -1,18 +1,18 @@
+import os
+from difflib import SequenceMatcher
+import json
 import requests
 import google.generativeai as genai
 from googletrans import Translator
-from difflib import SequenceMatcher
-
-import os
 from dotenv import load_dotenv
+
+translator = Translator()
 
 load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel(GEMINI_MODEL)
-
-translator = Translator()
 
 SUPPORTED_PARTS_OF_SPEECH = [
     "noun",
@@ -101,90 +101,270 @@ WORD_FREQUENCY_RANKS = {
 def get_word_info(word):
 
     if word.lower() in BE_VERBS:
+
         return {
             "is_valid": True,
             "parts_of_speech": ["verb"]
         }
 
     if word.lower() in OTHER_PART_OF_SPEECH_WORDS:
+
         return {
             "is_valid": True,
             "parts_of_speech": ["other"]
         }
 
-    url = f"https://api.dictionaryapi.dev/api/v2/entries/en/{word}"
+    url = (
+        "https://api.dictionaryapi.dev/"
+        f"api/v2/entries/en/{word}"
+    )
 
-    response = requests.get(url, timeout=5)
+    try:
 
-    if response.status_code != 200:
+        response = requests.get(
+            url,
+            timeout=5
+        )
+
+        if response.status_code != 200:
+
+            print(
+                f"[사전 API 실패] "
+                f"status={response.status_code}"
+            )
+
+            return {
+                "is_valid": False,
+                "parts_of_speech": []
+            }
+
+        try:
+
+            entries = response.json()
+
+        except Exception as json_error:
+
+            print(
+                f"[JSON 파싱 실패] "
+                f"{str(json_error)}"
+            )
+
+            return {
+                "is_valid": False,
+                "parts_of_speech": []
+            }
+
+        if not isinstance(entries, list):
+
+            return {
+                "is_valid": False,
+                "parts_of_speech": []
+            }
+
+        part_of_speech_scores = {}
+
+        has_other_part_of_speech = False
+
+        for entry in entries:
+
+            if not isinstance(entry, dict):
+                continue
+
+            for meaning in entry.get(
+                "meanings",
+                []
+            ):
+
+                part_of_speech = meaning.get(
+                    "partOfSpeech"
+                )
+
+                if (
+                    part_of_speech
+                    in PRIMARY_PARTS_OF_SPEECH
+                ):
+
+                    definition_count = len(
+                        meaning.get(
+                            "definitions",
+                            []
+                        )
+                    ) or 1
+
+                    part_of_speech_scores[
+                        part_of_speech
+                    ] = (
+
+                        part_of_speech_scores.get(
+                            part_of_speech,
+                            0
+                        )
+
+                        + definition_count
+                    )
+
+                elif part_of_speech:
+
+                    definition_count = len(
+                        meaning.get(
+                            "definitions",
+                            []
+                        )
+                    ) or 1
+
+                    has_other_part_of_speech = True
+
+                    part_of_speech_scores[
+                        "other"
+                    ] = (
+
+                        part_of_speech_scores.get(
+                            "other",
+                            0
+                        )
+
+                        + definition_count
+                    )
+
+        parts_of_speech = []
+
+        if part_of_speech_scores:
+
+            primary_part_of_speech = max(
+                part_of_speech_scores,
+                key=part_of_speech_scores.get
+            )
+
+            parts_of_speech.append(
+                primary_part_of_speech
+            )
+
+        elif has_other_part_of_speech:
+
+            parts_of_speech.append(
+                "other"
+            )
+
+        return {
+            "is_valid": True,
+            "parts_of_speech": parts_of_speech
+        }
+
+    except Exception as error:
+
+        print(
+            f"[get_word_info 오류] "
+            f"{str(error)}"
+        )
+
         return {
             "is_valid": False,
             "parts_of_speech": []
         }
 
-    entries = response.json()
-    part_of_speech_scores = {}
-    has_other_part_of_speech = False
 
-    for entry in entries:
-        for meaning in entry.get("meanings", []):
-            part_of_speech = meaning.get("partOfSpeech")
+def translate_word_with_gemini(word):
 
-            if part_of_speech in PRIMARY_PARTS_OF_SPEECH:
-                definition_count = len(meaning.get("definitions", [])) or 1
-                part_of_speech_scores[part_of_speech] = (
-                    part_of_speech_scores.get(part_of_speech, 0)
-                    + definition_count
-                )
-            elif part_of_speech:
-                definition_count = len(meaning.get("definitions", [])) or 1
-                has_other_part_of_speech = True
-                part_of_speech_scores["other"] = (
-                    part_of_speech_scores.get("other", 0)
-                    + definition_count
-                )
-
-    parts_of_speech = []
-
-    if part_of_speech_scores:
-        primary_part_of_speech = max(
-            part_of_speech_scores,
-            key=part_of_speech_scores.get
-        )
-
-        parts_of_speech.append(primary_part_of_speech)
-    elif has_other_part_of_speech:
-        parts_of_speech.append("other")
-
-    return {
-        "is_valid": True,
-        "parts_of_speech": parts_of_speech
-    }
-
-def suggest_words_with_gemini(word):
+    print(
+        f"[Gemini 분석] '{word}' 처리 중"
+    )
 
     prompt = f"""
-    The user entered an invalid English word: "{word}"
+You are an English vocabulary analyzer.
 
-    Suggest up to 3 real English words
-    similar to the typo.
+The input may be:
+- a word
+- a compound noun
+- a phrase
+- an English expression
 
-    Rules:
-    - Only real English words
-    - Maximum 3
-    - One word per line
-    - No numbering
-    - No explanation
-    """
+Analyze naturally.
 
-    response = model.generate_content(prompt)
+Input:
+"{word}"
 
-    suggestions = response.text.strip().split("\n")
+Rules:
+- Respond ONLY JSON
+- Translate naturally into Korean
+- Choose the most natural part of speech
+- Compound nouns are usually noun
+- Never say invalid unless meaningless
 
-    return clean_suggestions(suggestions)
+JSON format:
+{{
+  "success": true,
+  "word": "{word}",
+  "meaning": "자연스러운 한국어 뜻",
+  "partsOfSpeech": ["noun"],
+  "result": "{word} → 뜻"
+}}
+"""
+
+    try:
+
+        response = model.generate_content(
+            prompt,
+            request_options={
+                "timeout": 30
+            }
+        )
+
+        clean_text = response.text.strip()
+
+        if clean_text.startswith("```json"):
+            clean_text = clean_text[7:]
+
+        elif clean_text.startswith("```"):
+            clean_text = clean_text[3:]
+
+        if clean_text.endswith("```"):
+            clean_text = clean_text[:-3]
+
+        clean_text = clean_text.strip()
+
+        result_json = json.loads(
+            clean_text
+        )
+
+        if "partsOfSpeech" not in result_json:
+
+            result_json["partsOfSpeech"] = [
+                "other"
+            ]
+
+        result_json["success"] = True
+
+        result_json["result"] = (
+            f"{word} → "
+            f"{result_json.get('meaning')}"
+        )
+
+        return result_json
+
+    except Exception as error:
+
+        print(
+            f"[Gemini 실패] {str(error)}"
+        )
+
+        return {
+
+            "success": False,
+
+            "word": word,
+
+            "meaning":
+                "뜻을 찾을 수 없음",
+
+            "result":
+                "AI 서버가 일시적으로 응답하지 않습니다.",
+
+            "suggestions": [],
+
+            "partsOfSpeech": ["other"]
+        }
 
 def damerau_levenshtein_distance(first_word, second_word):
-
     first_length = len(first_word)
     second_length = len(second_word)
     distances = [
@@ -226,7 +406,6 @@ def damerau_levenshtein_distance(first_word, second_word):
     return distances[first_length][second_length]
 
 def is_strict_typo(input_word, candidate):
-
     distance = damerau_levenshtein_distance(input_word, candidate)
     similarity = SequenceMatcher(None, input_word, candidate).ratio()
 
@@ -239,7 +418,6 @@ def is_strict_typo(input_word, candidate):
     return distance <= 2 and similarity >= 0.74
 
 def is_soft_similarity(input_word, candidate):
-
     distance = damerau_levenshtein_distance(input_word, candidate)
     similarity = SequenceMatcher(None, input_word, candidate).ratio()
     length_gap = abs(len(candidate) - len(input_word))
@@ -260,7 +438,6 @@ def is_soft_similarity(input_word, candidate):
     return distance <= 4 or similarity >= 0.62
 
 def score_spelling_candidate(input_word, candidate):
-
     distance = damerau_levenshtein_distance(input_word, candidate)
     length_gap = abs(len(candidate) - len(input_word))
     prefix_similarity = 0
@@ -279,7 +456,6 @@ def score_spelling_candidate(input_word, candidate):
     )
 
 def suggest_words_by_rule(word, matcher):
-
     normalized_word = word.lower()
     scored_words = []
 
@@ -305,15 +481,12 @@ def suggest_words_by_rule(word, matcher):
     ])
 
 def suggest_words_by_strict_typo(word):
-
     return suggest_words_by_rule(word, is_strict_typo)
 
 def suggest_words_by_soft_similarity(word):
-
     return suggest_words_by_rule(word, is_soft_similarity)
 
 def suggest_expanded_forms(word):
-
     normalized_word = word.lower()
 
     if len(normalized_word) < 4:
@@ -331,7 +504,6 @@ def suggest_expanded_forms(word):
     return clean_suggestions(expanded_forms)
 
 def suggest_words_by_spelling(word):
-
     strict_suggestions = suggest_words_by_strict_typo(word)
 
     if strict_suggestions:
@@ -341,30 +513,27 @@ def suggest_words_by_spelling(word):
 
 def suggest_similar_words(word):
 
-    suggestions = suggest_words_by_strict_typo(word)
+    suggestions = (
+        suggest_words_by_strict_typo(
+            word
+        )
+    )
 
     if suggestions:
         return suggestions
 
-    suggestions = suggest_words_by_soft_similarity(word)
+    suggestions = (
+        suggest_words_by_soft_similarity(
+            word
+        )
+    )
 
     if suggestions:
         return suggestions
 
-    try:
-        gemini_suggestions = suggest_words_with_gemini(word)
-    except Exception as error:
-        print(error)
-        gemini_suggestions = []
-
-    for suggestion in gemini_suggestions:
-        if suggestion not in suggestions:
-            suggestions.append(suggestion)
-
-    return suggestions[:3]
+    return []
 
 def clean_suggestions(suggestions):
-
     cleaned = []
 
     for suggestion in suggestions:
@@ -376,7 +545,6 @@ def clean_suggestions(suggestions):
     return cleaned[:3]
 
 def suggest_similar_words_fallback(word):
-
     normalized_word = word.lower()
 
     ranked_words = sorted(
@@ -391,51 +559,149 @@ def suggest_similar_words_fallback(word):
     return clean_suggestions(ranked_words[:3])
 
 def build_invalid_word_message(suggestions):
-
     message = "❌ 존재하지 않는 영어 단어입니다."
-    
     return message
 
 def translate_word(word):
 
     try:
-        word_info = get_word_info(word)
 
+        normalized_word = (
+            word.strip().lower()
+        )
+
+        if not normalized_word:
+
+            return {
+
+                "success": False,
+
+                "word": "",
+
+                "meaning": "",
+
+                "result":
+                    "입력된 단어가 없습니다.",
+
+                "suggestions": [],
+
+                "partsOfSpeech":
+                    []
+            }
+
+        # 복합 표현은 Gemini 사용
+        if " " in normalized_word:
+
+            print(
+                f"[복합 표현 감지] "
+                f"{normalized_word}"
+            )
+
+            return translate_word_with_gemini(
+                normalized_word
+            )
+
+        # 일반 단어 검사
+        word_info = get_word_info(
+            normalized_word
+        )
+
+        # 존재하지 않는 단어
         if not word_info["is_valid"]:
 
             try:
-                suggestions = suggest_similar_words(word)
+
+                suggestions = (
+                    suggest_similar_words(
+                        normalized_word
+                    )
+                )
+
             except Exception as error:
+
                 print(error)
-                suggestions = suggest_similar_words_fallback(word)
+
+                suggestions = (
+                    suggest_similar_words_fallback(
+                        normalized_word
+                    )
+                )
 
             return {
+
                 "success": False,
-                "word": word,
+
+                "word":
+                    normalized_word,
+
                 "meaning": "",
-                "result": build_invalid_word_message(suggestions),
-                "suggestions": suggestions,
-                "partsOfSpeech": []
+
+                "result":
+                    build_invalid_word_message(
+                        suggestions
+                    ),
+
+                "suggestions":
+                    suggestions,
+
+                "partsOfSpeech":
+                    []
             }
 
-        translated = translator.translate(word, src="en", dest="ko")
+        # 한국어 번역
+        translated = translator.translate(
+            normalized_word,
+            src="en",
+            dest="ko"
+        )
+
+        korean_meaning = (
+            translated.text
+        )
 
         return {
+
             "success": True,
-            "word": word,
-            "meaning": translated.text,
-            "result": f"{word} → {translated.text}",
-            "suggestions": suggest_expanded_forms(word),
-            "partsOfSpeech": word_info["parts_of_speech"]
+
+            "word":
+                normalized_word,
+
+            "meaning":
+                korean_meaning,
+
+            "result":
+                f"{normalized_word} "
+                f"→ {korean_meaning}",
+
+            "suggestions":
+                suggest_expanded_forms(
+                    normalized_word
+                ),
+
+            "partsOfSpeech":
+                word_info[
+                    "parts_of_speech"
+                ]
         }
+
     except Exception as error:
+
         print(error)
 
         return {
+
             "success": False,
-            "word": word,
+
+            "word":
+                word,
+
             "meaning": "",
-            "result": "번역 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+
+            "result":
+                "번역 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+
             "suggestions": [],
-            "partsOfSpeech": []
+
+            "partsOfSpeech":
+                []
         }
