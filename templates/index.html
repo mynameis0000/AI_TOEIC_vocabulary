@@ -60,7 +60,7 @@
 
 </div>
 
-<!-- EDIT MODAL (중복 제거 후 1개만 남김) -->
+
 <div class="edit-modal" id="editModal">
     <div class="edit-modal-content">
         <h2>단어 수정</h2>
@@ -81,7 +81,6 @@
         </div>
     </div>
 </div>
-
-<script src="{{ url_for('static', filename='script.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='main.js') }}?t={{ range(100000, 999999)|random }}"></script>
 </body>
 </html>
