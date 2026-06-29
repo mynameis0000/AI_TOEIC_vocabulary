@@ -22,14 +22,6 @@ PART_OF_SPEECH_LABELS = {
 def home():
     return render_template("index.html")
 
-# ----------------------------------------------------
-# 픽스: cron-job.org 전용 초경량 헬스체크 경로 추가
-# ----------------------------------------------------
-@app.route("/health")
-def health_check():
-    # 화면을 그리지 않고 오직 문자열 "OK"와 상태코드 200만 반환합니다.
-    return "OK", 200
-
 #데이터 처리 및 통신
 #검색 버튼 눌러 데이터를 서버로 보낼 때
 @app.route("/generate", methods=["POST"])
